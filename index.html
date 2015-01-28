@@ -1,0 +1,353 @@
+<html>
+  <head>
+<script src="http://spec.commonmark.org/js/commonmark.js"></script>
+<script src="http://code.jquery.com/jquery-1.11.2.min.js"></script>
+<script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css" media="screen" title="no title" charset="utf-8">
+    <style>
+      .highlighted {
+        background-color:rgba(0,200,200,0.6);
+      }
+    </style>
+    <style type="text/css">
+      h1.title { font-family: monospace; font-size: 120%; font-weight: bold;
+            margin-top: 0.5em; margin-bottom: 0; }
+      textarea#text { height: 400px; width: 95%; font-family: monospace; font-size: 92%; }
+      pre code#html { font-size: 92%; font-family: monospace; }
+      pre#htmlpre { height: 400px; overflow: scroll; resize: vertical; width: 95%; }
+      div#astpre  { height: 400px; overflow: scroll; resize: vertical; width: 95%; }
+      div#preview { height: 400px; overflow: scroll; resize: vertical; width: 95%; }
+      div.row { margin-top: 1em; }
+      blockquote { font-size: 100%; }
+      footer { color: #555; text-align: center; margin: 1em; }
+      pre { display: block; padding: 0.5em; color: #333; background: #f8f8ff }
+      #warnings li { color: red; font-weight: bold; }
+      label { padding-left: 1em; padding-top: 0; padding-bottom: 0; }
+      div.timing { color: gray; visibility: hidden; height: 2em; }
+      p#text-controls { height: 1em; margin-top: 1em; }
+      a#permalink { margin-left: 1em; }
+      span.timing { font-weight: bold; }
+      span.timing { font-weight: bold; }
+    </style>
+    <script type="text/javascript">
+      $(function(){
+
+        $('.cmelement').hover(
+          // mouseenter
+          function(){
+            var cmclass = $(this).data('cmclass');
+            selector = '.' + cmclass
+            $(selector).addClass('highlighted')
+
+            // pair = document.getElementsByClassName(cmclass);
+          },
+          // mouseleave
+          function() {
+            var cmclass = $(this).data('cmclass');
+            selector = '.' + cmclass
+            $(selector).removeClass('highlighted')
+          }
+        );
+      });
+    </script>
+    <script type="text/javascript">
+
+var writer = new commonmark.HtmlRenderer();
+var xmlwriter = new commonmark.XmlRenderer({ sourcepos: true });
+var reader = new commonmark.Parser();
+
+function getQueryVariable(variable) {
+  var query = window.location.search.substring(1);
+  var vars = query.split("&");
+  for (var i=0; i<vars.length; i++) {
+    var pair = vars[i].split("=");
+    if (pair[0] == variable){
+      return decodeURIComponent(pair[1]);
+    }
+  }
+  return null;
+}
+
+// via http://stackoverflow.com/questions/499126/jquery-set-cursor-position-in-text-area
+function setSelectionRange(input, selectionStart, selectionEnd) {
+  if (input.setSelectionRange) {
+    input.focus();
+    input.setSelectionRange(selectionStart, selectionEnd);
+  }
+  else if (input.createTextRange) {
+    var range = input.createTextRange();
+    range.collapse(true);
+    range.moveEnd('character', selectionEnd);
+    range.moveStart('character', selectionStart);
+    range.select();
+  }
+}
+// via http://stackoverflow.com/questions/499126/jquery-set-cursor-position-in-text-area
+function setCaretToPos(input, pos) {
+  setSelectionRange(input, pos, pos);
+}
+
+$(document).ready(function() {
+  var timer;
+  var x;
+  var parsed;
+  var render = function() {
+    if (parsed === undefined) {
+      return;
+    }
+    var startTime = new Date().getTime();
+    var result = writer.render(parsed);
+    var endTime = new Date().getTime();
+    var renderTime = endTime - startTime;
+    $("#preview").html(result);
+    $("#html").text(result);
+    $("#ast").text(xmlwriter.render(parsed));
+    $("#rendertime").text(renderTime);
+  };
+  var parseAndRender = function() {
+    if (x) { x.abort() } // If there is an existing XHR, abort it.
+    clearTimeout(timer); // Clear the timer so we don't end up with dupes.
+    timer = setTimeout(function() { // assign timer a new timeout
+      var startTime = new Date().getTime();
+      parsed = reader.parse($("#text").val());
+      var endTime = new Date().getTime();
+      var parseTime = endTime - startTime;
+      $("#parsetime").text(parseTime);
+      $(".timing").css('visibility','visible');
+      /*
+      var warnings = parsed.warnings;
+      $("#warnings").html('');
+      for (i=0; i < warnings.length; i++) {
+        var w = warnings[i];
+        var warning = $("#warnings").append('<li></li>');
+        $("#warnings li").last().text('Line ' + w.line + ' column ' + w.column + ': ' + w.message);
+      }
+      */
+      render();
+    }, 0); // ms delay
+  };
+  var initial_text = getQueryVariable("text");
+  if (initial_text) {
+    $("#text").val(initial_text);
+    // show HTML tab if text is from query
+    $('#result-tabs a[href="#result"]').tab('show');
+  }
+  // make tab insert a tab in the text box:
+  $("#text").keydown(function(e) {
+    if (e.which == 9) {
+      e.preventDefault();
+      if (this.selectionStart !== undefined) {
+        var pos = this.selectionStart;
+        this.value = this.value.substring(0, pos) + "\t" + this.value.substring(pos);
+        setCaretToPos(this, pos + 1);
+      } else {
+        this.value += "\t";
+      }
+    }
+  });
+  parseAndRender();
+  $("#clear-text-box").click(function(e) {
+    $("#text").val('');
+    window.location.search = "";
+    parseAndRender();
+  });
+  $("#permalink").click(function(e) {
+    window.location.pathname = "/index.html";
+    window.location.search = "text=" + encodeURIComponent($("#text").val());
+  });
+  $("#text").bind('keyup paste cut mouseup', parseAndRender);
+  $(".option").change(render);
+});
+    </script>
+  </head>
+  <body>
+    <div class="container">
+
+      <div class="row">
+        <h1>Highlighting on hover option</h1>
+        <div class="col-md-2">
+        <div class="panel panel-default">
+
+        <div class="panel-heading">
+          Elements
+        </div>
+        <div class="panel-body">
+
+          <ul class="list-unstyled">
+            <li class="cmelement header" data-cmclass="header">Header</li>
+            <li class="cmelement paragraph" data-cmclass="paragraph">Paragraph</li>
+            <li class="cmelement bold" data-cmclass="bold">Bold</li>
+            <li class="cmelement italics" data-cmclass="italics">Italics</li>
+            <li>Lists
+              <ul>
+                <li class="cmelement unorderedlist" data-cmclass="unorderedlist">Unordered List</li>
+                <li class="cmelement orderedlist" data-cmclass="orderedlist">Ordered List</li>
+              </ul>
+            </li>
+            <!-- <li class="cmelement image" data-cmclass="image">Image</li> -->
+            <li class="cmelement code" data-cmclass="code">Code</li>
+            <li class="cmelement quote" data-cmclass="quote">Quotation</li>
+            <!-- <li class="cmelement escaping" data-cmclass="escaping">Escaping</li> -->
+            <!--<li class="cmelement " data-cmclass="">HTML</li> -->
+            <li class="cmelement link" data-cmclass="link">Link</li>
+          </ul>
+        </div>
+        </div> <!-- panel -->
+        </div> <!-- col -->
+
+        <div class="col-md-4">
+          <div class="panel panel-default">
+            <div class="panel-heading">
+              Commonmark text
+            </div>
+            <div class="panel-body">
+
+
+
+<span class="cmelement header"># Heading 1</span><br>
+<span class="cmelement header">### Heading 3</span><br><br>
+<span class="cmelement paragraph" data-cmclass="paragraph">A paragraph</span><br>
+<span class="cmelement paragraph" data-cmclass="paragraph"> After a single newline </span>
+<br><br>
+<span class="cmelement paragraph" data-cmclass="paragraph"> After two newlines </span> <br>
+<span class="cmelement bold" data-cmclass="bold"> <br>
+**Bolding** </span> <br><br>
+<span class="cmelement italics" data-cmclass="italics"> _Italics_ </span> <br><br>
+<span class="cmelement unorderedlist" data-cmclass="unorderedlist">
+- unordered list item <br>
+- unordered list item
+</span> <br><br>
+
+<span class="cmelement orderedlist" data-cmclass="orderedlist">
+
+1. ordered list items <br>
+1. ordered list items
+</span><br><br>
+
+<span class="cmelement code" data-cmclass="code">
+
+```
+Code is surrounded by triple backticks
+```
+</span><br><br>
+<span class="cmelement quote" data-cmclass="quote">
+
+> Quotations are preceded by "> "
+</span><br><br>
+
+<span class="cmelement link" data-cmclass="link"> [Links](http://commonmark.org)</span>
+        </div>
+        </div>
+        </div>
+
+
+
+        <div class="col-md-4">
+          <div class="panel panel-default">
+            <div class="panel-heading">
+              Rendered Output
+            </div>
+            <div class="panel-body">
+
+
+
+          <h1 class="cmelement header" data-cmclass="header">Heading 1</h1>
+          <h3 class="cmelement header" data-cmclass="header">Heading 3</h3>
+          <p class="cmelement paragraph" data-cmclass="paragraph">
+            A paragraph <br>
+            After a single newline
+            <br><br>
+            After two newlines
+          </p>
+
+
+
+          <p class="cmelement bold" data-cmclass="bold"><strong>Bolding</strong></p>
+          <p class="cmelement italics" data-cmclass="italics"><em>Italics</em></p>
+
+          <ul class="cmelement unorderedlist" data-cmclass="unorderedlist">
+          <li>unordered list item</li>
+          <li>unordered list item</li>
+          </ul>
+          <ol class="cmelement orderedlist" data-cmclass="orderedlist">
+          <li>ordered list items</li>
+          <li>ordered list items</li>
+          </ol>
+          <pre class="cmelement code" data-cmclass="code"><code>Code is surrounded by triple backticks
+          </code></pre>
+          <blockquote>
+          <p class="cmelement quote" data-cmclass="quote">Quotations are preceded by &quot;&gt; &quot;</p>
+          </blockquote>
+          <p class="cmelement link" data-cmclass="link"><a href="http://commonmark.org">Links</a></p>
+        </div>
+        </div>
+        </div>
+
+      </div> <!-- row -->
+
+      <div class="row">
+        <h1>Much simpler table display</h1>
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Commonmark</th>
+              <th>Rendered</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Header</td>
+              <td># Header1<br>### Header3</td>
+              <td><h1>Header1</h1><h3>Header3</h3></td>
+            </tr>
+            <tr>
+              <td>Bold</td>
+              <td>*bold*</td>
+              <td><strong>bold</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+      </div>
+
+      <div class="row">
+        <h1>Try It</h1>
+        <p class="text-muted">
+          Unabashedly stolen from http://spec.commonmark.org/dingus.html
+          <br>
+          Suggest adding in wysiwyg controls here, akin to
+          http://www.codingdrama.com/bootstrap-markdown/
+          or discourse editor
+        </p>
+    <div class="col-md-6">
+      <p id="text-controls"><a id="clear-text-box">clear</a>&nbsp;<a id="permalink">permalink</a></p>
+      <textarea id="text"></textarea>
+      <ul id="warnings"></ul>
+      <div class="timing" style="visibility: visible;">Parsed in <span class="timing" id="parsetime" style="visibility: visible;">0</span>
+      ms.  Rendered in <span class="timing" id="rendertime" style="visibility: visible;">0</span> ms.</div>
+    </div>
+    <div class="col-md-6">
+      <ul id="result-tabs" class="nav nav-tabs" role="tablist">
+        <li class="active"><a href="#preview" role="tab" data-toggle="tab">Preview</a></li>
+        <li><a href="#result" role="tab" data-toggle="tab">HTML</a></li>
+        <li><a href="#result-ast" role="tab" data-toggle="tab">AST</a></li>
+      </ul>
+      <div class="tab-content">
+        <div id="preview" class="tab-pane active">
+</div>
+        <div id="result" class="tab-pane">
+          <pre id="htmlpre"><code id="html">
+</code></pre>
+        </div>
+        <div id="result-ast" class="tab-pane">
+          <pre id="astpre"><code id="ast">
+</code></pre>
+        </div>
+    </div>
+  </div>
+</div>
+
+    </div> <!-- container -->
+  </body>
+</html>
